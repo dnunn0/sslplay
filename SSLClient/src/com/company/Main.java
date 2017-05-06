@@ -19,8 +19,7 @@ public class Main {
                 SSLSocket s = (SSLSocket) sf.createSocket(HOST, PORT);
                 BufferedInputStream in = new BufferedInputStream(s.getInputStream());
                 OutputStream out = s.getOutputStream();
-        )
-        {
+        ) {
             startReading(in);
 
             out.write("Connection established.\n".getBytes());

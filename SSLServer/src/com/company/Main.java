@@ -1,6 +1,7 @@
 package com.company;
 
-import javax.net.ssl.*;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
 import java.io.*;
 import java.net.Socket;
 import java.util.Arrays;
@@ -12,20 +13,19 @@ public class Main {
         try {
             //server needs access to private key so that it can encrypt outbound to client
             //   which can check result with public key. Not sure if DDI does client auth as well....
-            ourKeyStore = Main.class.getClassLoader().getResource("ddi.p12").getFile();
+            ourKeyStore = Main.class.getClassLoader().getResource("privateKeyStore.p12").getFile();
             System.setProperty("javax.net.ssl.keyStore", ourKeyStore);
             System.setProperty("javax.net.ssl.keyStorePassword", "changeit");
         } catch (Exception e) {
             log("Unable to load keystore %s", ourKeyStore);
-            log("TSL communications will fail");
+            log("TLS communications will fail");
             log(e.getMessage());
-            //TODO: this is fatal...
+            System.exit(-1);
         }
     }
 
 
-
-        private static final int PORT = 8025;
+    private static final int PORT = 8025;
 
     public static void main(String[] args) throws Exception {
 
@@ -37,26 +37,12 @@ public class Main {
             try (
                     Socket s = ss.accept();
                     BufferedOutputStream out = new BufferedOutputStream(s.getOutputStream());
-                    BufferedReader inbr = new BufferedReader(new InputStreamReader(s.getInputStream()));
                     BufferedInputStream in = new BufferedInputStream(s.getInputStream());
             ) {
 
-                //               echoLine(out, inbr);
-
-
-                //   try { Thread.sleep(1000);} catch(Exception ex) {}
                 byte[] buffer = new byte[8096];
-                // forward("c-s", in, out, buffer);
                 forward(in, out, buffer);
 
-//                try { Thread.sleep(1000);} catch(Exception ex) {}
-//                byte[] buffer = new byte[20000];
-//
-//                while (true) {
-//                    System.out.print(in.available());
-//                    try { Thread.sleep(1000);} catch(Exception ex) {}
-//                    forward("client->Server", in, out, buffer);
-//                }
                 log("normal exit");
             } catch (Exception ex) {
                 ex.printStackTrace();
@@ -79,41 +65,6 @@ public class Main {
         log("done forwarding");
     }
 
-
-    private static int forward(String sourceName, InputStream inFromSource, OutputStream outToDest, byte[] buffer) {
-        int totalForwardedCount = 0;
-        int availAtSourceCount = 0;
-        try {
-            while (true) {
-                availAtSourceCount = inFromSource.available();
-                // log("something to read: "+ availAtSourceCount);
-                Arrays.fill(buffer, (byte) 0);
-                int bytesReadCount = 0;
-                try {
-                    bytesReadCount = inFromSource.read(buffer, 0, Math.min(buffer.length, availAtSourceCount));
-                } catch (IOException e) {
-                    throw new RuntimeException("failed to read from " + sourceName, e);
-                }
-                if (bytesReadCount > 0) {
-                    log("%s sent %d bytes [\n%s\n]", sourceName, bytesReadCount, new String(buffer));
-                    sendData(outToDest, buffer, bytesReadCount);
-                    totalForwardedCount += bytesReadCount;
-                }
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        } finally {
-
-            if (totalForwardedCount > 0)
-                log("Finished forwarding %s, forwarded %d", sourceName, totalForwardedCount);
-            return totalForwardedCount;
-        }
-    }
-
-    private static void sendData(OutputStream outToDest, byte[] buffer, int count) throws Exception {
-        outToDest.write(buffer, 0, count);
-        outToDest.flush();
-    }
 
     private static void log(String message, Object... args) {
         String formattedMessage = String.format(message, args);
